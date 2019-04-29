@@ -1,0 +1,258 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# Copyright (c) 2019, tarlety@gmail.com
+#
+# Zerus Scripting Standard v0.2.0
+#
+# This standard defines script state management framework.
+# Following this framework, you can manage app states in a consistent way.
+#
+# Environments:
+#
+#    SECRET	Where to keep secrets.
+#    CONFIG	Where to keep configurations.
+#    STORE	Where to keep persistent data.
+#
+# Commands:
+#
+#    env                Display all runtime environments, configurables, and required tools.
+#    config ...         Set configurations by this command.
+#    secret-create      Create new secrets.
+#    state [config/secret/data] [list/save/load] [state-name]
+#                       App state type includes config, secret, and data.
+#                       The state can be saved or loaded.
+#                       Default state type is all states and default action is "list".
+#
+# Scnario:
+#
+#    1. First, use "<scirptname> env" to confirm the state is clean.
+#    2. Then, use "<scriptname> config" to know how many configurations you have to set.
+#    3. Then, use "<scriptname> secret-create" to create secret files.
+#    4. Then, use "<scriptname> env" again to confirm the state is what you want.
+
+
+#------------------------------------------------------------------------------
+# Environments:
+
+SCRIPTNAME=test-app-gitea-in-minikube
+APPNAME=gitea
+
+SECRET=${SECRET:-".secret/$SCRIPTNAME"}
+CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
+
+DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
+DEFAULT_KUBEAPPSDIR=../
+DEFAULT_APP_BASEDIR=/data/$APPNAME
+DEFAULT_APP_BACKUP=/data/$APPNAME/backup
+DEFAULT_APP_DATA=/data/$APPNAME/data
+DEFAULT_LOCAL_BACKUP=/hosthome/$USER/store/
+DEFAULT_NODE_SSH_PORT=32767
+DEFAULT_DB_TYPE=sqlite3
+DEFAULT_GPGKEYNAME=$USERNAME
+
+STORE=`cat $CONFIG/store 2>/dev/null`
+KUBEAPPSDIR=`cat $CONFIG/kubeappsdir 2>/dev/null`
+APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
+APP_BACKUP=`cat $CONFIG/app_backup 2>/dev/null`
+APP_DATA=`cat $CONFIG/app_data 2>/dev/null`
+LOCAL_BACKUP=`cat $CONFIG/local_backup 2>/dev/null`
+NODE_SSH_PORT=`cat $CONFIG/node_ssh_port 2>/dev/null`
+DB_TYPE=`cat $CONFIG/db_type 2>/dev/null`
+GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
+
+export NODE_SSH_PORT
+export DB_TYPE
+
+#------------------------------------------------------------------------------
+# Commands
+
+case $1 in
+	"env")
+		echo =========================================================================
+		echo \#\# SCRIPT NAME: $SCRIPTNAME
+		echo - SECRET: $SECRET
+		echo - CONFIG: $CONFIG
+		echo - STORE: $STORE
+		echo - KUBEAPPSDIR: $KUBEAPPSDIR
+		echo - APP_BASEDIR: $APP_BASEDIR
+		echo - APP_BACKUP: $APP_BACKUP
+		echo - APP_DATA: $APP_DATA
+		echo - LOCAL_BACKUP: $LOCAL_BACKUP
+		echo - NODE_SSH_PORT: $NODE_SSH_PORT
+		echo - DB_TYPE: $DB_TYPE
+		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
+		echo \#\# REQUIREMENT:
+		echo - minikube: $(which minikube)
+		echo - kubectl: $(which kubectl)
+		echo =========================================================================
+		;;
+	"config")
+		shift
+		mkdir -p ${CONFIG}
+		case $1 in
+			"store")
+				shift
+				STORE=${1:-$DEFAULT_STORE}
+				echo $STORE > ${CONFIG}/store
+				;;
+			"kubeappsdir")
+				shift
+				KUBEAPPSDIR=${1:-$DEFAULT_KUBEAPPSDIR}
+				echo $KUBEAPPSDIR > ${CONFIG}/kubeappsdir
+				;;
+			"app_base_dir")
+				shift
+				APP_BASEDIR=${1:-$DEFAULT_APP_BASEDIR}
+				echo $APP_BASEDIR > ${CONFIG}/app_basedir
+				;;
+			"app_backup_dir")
+				shift
+				APP_BACKUP=${1:-$DEFAULT_APP_BACKUP}
+				echo $APP_BACKUP > ${CONFIG}/app_backup
+				;;
+			"app_data_dir")
+				shift
+				APP_DATA=${1:-$DEFAULT_APP_DATA}
+				echo $APP_DATA > ${CONFIG}/app_data
+				;;
+			"local_backup")
+				shift
+				LOCAL_BACKUP=${1:-$DEFAULT_LOCAL_BACKUP}
+				echo $LOCAL_BACKUP > ${CONFIG}/local_backup
+				;;
+			"node_ssh_port")
+				shift
+				PORT=${1:-$DEFAULT_NODE_SSH_PORT}
+				echo $PORT > ${CONFIG}/node_ssh_port
+				;;
+			"db_type")
+				shift
+				DB_TYPE=${1:-$DEFAULT_DB_TYPE}
+				echo $DB_TYPE > ${CONFIG}/db_type
+				;;
+			"gpg")
+				shift
+				GPGKEYNAME=${1:-$DEFAULT_GPGKEYNAME}
+				echo $GPGKEYNAME >  ${CONFIG}/gpgkeyname
+				;;
+			*)
+				echo $(basename $0) config "<config_name>" "<config_value>"
+				echo ""
+				echo "config names:"
+				echo "	store		The local repository for state."
+				echo "			Ex: $(basename $0) config store $DEFAULT_STORE"
+				echo "	kubeappsdir	Where the kube-apps scripts are installed."
+				echo "			Ex: $(basename $0) config kubeappsdir $DEFAULT_KUBEAPPSDIR"
+				echo "	app_base_dir	The base directory in minikube."
+				echo "			Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
+				echo "	app_backup_dir	Apps backup data here."
+				echo "			Ex: $(basename $0) config app_backup_dir $DEFAULT_APP_BACKUP"
+				echo "	app_data_dir	Apps runtime data stores here."
+				echo "			Ex: $(basename $0) config app_data_dir $DEFAULT_APP_DATA"
+				echo "	local_backup	In order to exchange files between host and minikube, the path shall begin with '/hosthome'."
+				echo "			The '/hosthome' in minikube maps to the path '/home' in host."
+				echo "			Ex: $(basename $0) config local_backup $DEFAULT_LOCAL_BACKUP"
+				echo "	node_ssh_port	The gitea SSH port exposed on minikube."
+				echo "			Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
+				echo "	db_type		Two databases type: sqlite3 or postgres."
+				echo "			Ex: $(basename $0) config db_type $DEFAULT_DB_TYPE"
+				echo "	gpg		the gpg key used to encrypt data, like secrets."
+				echo "			Ex: $(basename $0) config gpg $DEFAULT_GPGKEYNAME"
+				;;
+		esac
+		;;
+	"secret-create")
+		echo "SECRET not support."
+		;;
+	"state")
+		shift
+		ACTION=$1
+		TYPE=$2
+		STATENAME=$3
+
+		mkdir -p ${STORE}/state ${STORE}/data
+		case $ACTION in
+			"save")
+				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+					tar -zcf ${STORE}/state/$STATENAME-$APPNAME-config.tgz .config
+				fi
+				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
+					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
+				fi
+				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
+					minikube ssh -- "sudo mkdir -p $LOCAL_BACKUP"
+					minikube ssh -- "sudo tar -C $APP_BASEDIR -c . | gzip - > $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz"
+				fi
+				;;
+			"load")
+				cd ..
+				./do app $APPNAME off
+				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+					[ -e ${STORE}/state/$STATENAME-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-$APPNAME-config.tgz
+				fi
+				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
+					if [ -e ${STORE}/state/$ID-secret.enc ]
+					then
+						kubectl delete secret passwords -n app-$APPNAME
+						gpg -d ${STORE}/state/$STATENAME-$APPNAME-secret.enc | kubectl apply -f -
+					fi
+				fi
+				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
+					minikube ssh -- "sudo rm -rf $APP_BASEDIR"
+					minikube ssh -- "sudo mkdir -p $APP_BASEDIR"
+					minikube ssh -- "cd $APP_BASEDIR ; gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | sudo tar -C $APP_BASEDIR -x"
+				fi
+				./do app $APPNAME on
+				cd -
+				;;
+			"list"|*)
+				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+					echo \#\# CONFIG:
+					cd ${STORE}/state
+					ls *-$APPNAME-config.tgz 2>/dev/null | sed "s/-${APPNAME}-config.tgz//"
+					cd - &>/dev/null
+				fi
+				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
+					echo \#\# SECRET:
+					cd ${STORE}/state
+					ls *-$APPNAME-secret.enc 2>/dev/null | sed "s/-${APPNAME}-secret.enc//"
+					cd - &>/dev/null
+				fi
+				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
+					echo \#\# DATA:
+					cd ${STORE}/data
+					ls *-${APPNAME}-data.tgz 2>/dev/null | sed "s/-${APPNAME}-data.tgz//"
+					cd - &>/dev/null
+				fi
+				;;
+		esac
+		;;
+	"clean-on")
+		cd $KUBEAPPSDIR
+		minikube ssh -- "sudo mkdir -p $APP_BACKUP"
+		minikube ssh -- "sudo mkdir -p $APP_DATA"
+		store/hostpath.sh app-$APPNAME cold 1000Gi $APP_BACKUP
+		store/hostpath.sh app-$APPNAME normal 100Gi $APP_DATA
+		./do app $APPNAME init
+		./do app $APPNAME on
+		cd -
+		;;
+	"clean-off")
+		cd $KUBEAPPSDIR
+		./do app $APPNAME off
+		./do app $APPNAME clean
+		kubectl delete pv app-$APPNAME-cold
+		kubectl delete pv app-$APPNAME-normal
+		minikube ssh -- "sudo rm -rf $APP_BASEDIR"
+		cd -
+		;;
+	*)
+		echo $(basename $0) env
+		echo $(basename $0) config ...
+		echo $(basename $0) secret-create
+		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name]"
+		echo $(basename $0) clean-on/clean-off
+		;;
+esac
+
