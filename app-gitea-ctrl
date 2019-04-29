@@ -44,8 +44,6 @@ CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
 DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
 DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
 DEFAULT_APP_BASEDIR=/data/$APPNAME
-DEFAULT_APP_BACKUP=/data/$APPNAME/backup
-DEFAULT_APP_DATA=/data/$APPNAME/data
 DEFAULT_NODE_SSH_PORT=32767
 DEFAULT_DB_TYPE=postgres
 DEFAULT_GPGKEYNAME=$USERNAME
@@ -53,11 +51,12 @@ DEFAULT_GPGKEYNAME=$USERNAME
 STORE=`cat $CONFIG/store 2>/dev/null`
 KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
 APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
-APP_BACKUP=`cat $CONFIG/app_backup 2>/dev/null`
-APP_DATA=`cat $CONFIG/app_data 2>/dev/null`
 NODE_SSH_PORT=`cat $CONFIG/node_ssh_port 2>/dev/null`
 DB_TYPE=`cat $CONFIG/db_type 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
+
+APP_BACKUP=$APP_BASEDIR/backup
+APP_DATA=$APP_BASEDIR/data
 
 export NODE_SSH_PORT
 export DB_TYPE
@@ -74,8 +73,6 @@ case $1 in
 		echo - STORE: $STORE
 		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
 		echo - APP_BASEDIR: $APP_BASEDIR
-		echo - APP_BACKUP: $APP_BACKUP
-		echo - APP_DATA: $APP_DATA
 		echo - NODE_SSH_PORT: $NODE_SSH_PORT
 		echo - DB_TYPE: $DB_TYPE
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
@@ -106,16 +103,6 @@ case $1 in
 				APP_BASEDIR=${1:-$DEFAULT_APP_BASEDIR}
 				echo $APP_BASEDIR > ${CONFIG}/app_basedir
 				;;
-			"app_backup_dir")
-				shift
-				APP_BACKUP=${1:-$DEFAULT_APP_BACKUP}
-				echo $APP_BACKUP > ${CONFIG}/app_backup
-				;;
-			"app_data_dir")
-				shift
-				APP_DATA=${1:-$DEFAULT_APP_DATA}
-				echo $APP_DATA > ${CONFIG}/app_data
-				;;
 			"node_ssh_port")
 				shift
 				PORT=${1:-$DEFAULT_NODE_SSH_PORT}
@@ -139,12 +126,8 @@ case $1 in
 				echo "				Ex: $(basename $0) config store $DEFAULT_STORE"
 				echo "	kubeapps_platform_dir	Where the kube_apps_platform scripts are installed."
 				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
-				echo "	app_base_dir		The base directory in kube node."
+				echo "	app_base_dir		The app stores runtime data under /data and backup data under /backup."
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
-				echo "	app_backup_dir		Apps backup data here."
-				echo "				Ex: $(basename $0) config app_backup_dir $DEFAULT_APP_BACKUP"
-				echo "	app_data_dir		Apps runtime data stores here."
-				echo "				Ex: $(basename $0) config app_data_dir $DEFAULT_APP_DATA"
 				echo "	node_ssh_port		The gitea SSH port exposed on kube node."
 				echo "				Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
 				echo "	db_type			Two databases type: sqlite3 or postgres."
@@ -174,7 +157,7 @@ case $1 in
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
-					./do ssh "sudo tar -C $APP_BASEDIR -c ." | gzip - > $STORE/data/$STATENAME-$APPNAME-data.tgz
+					./do ssh "sudo tar -C $APP_BASEDIR -c ." | gzip - | gpg -ear ${GPGKEYNAME} -o $STORE/data/$STATENAME-$APPNAME-data.tgz.enc
 					cd -
 				fi
 				;;
@@ -192,7 +175,7 @@ case $1 in
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
 					./do ssh "sudo rm -rf $APP_BASEDIR ; sudo mkdir -p $APP_BASEDIR"
-					gunzip -c $STORE/data/$STATENAME-$APPNAME-data.tgz | ./do ssh "sudo tar -C $APP_BASEDIR -xf -"
+					gpg -d ${STORE}/data/$STATENAME-$APPNAME-data.tgz.enc | gunzip -c $STORE/data/$STATENAME-$APPNAME-data.tgz - | ./do ssh "sudo tar -C $APP_BASEDIR -xf -"
 					cd -
 				fi
 				;;
@@ -212,7 +195,7 @@ case $1 in
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					echo \#\# DATA:
 					cd ${STORE}/data
-					ls *-${APPNAME}-data.tgz 2>/dev/null | sed "s/-${APPNAME}-data.tgz//"
+					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/-${APPNAME}-data.tgz.enc//"
 					cd - &>/dev/null
 				fi
 				;;
