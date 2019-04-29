@@ -42,12 +42,13 @@ SECRET=${SECRET:-".secret/$SCRIPTNAME"}
 CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
 
 DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
-DEFAULT_KUBEAPPS_PLATFORM_DIR=../
+DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
 DEFAULT_APP_BASEDIR=/data/$APPNAME
 DEFAULT_APP_BACKUP=/data/$APPNAME/backup
 DEFAULT_APP_DATA=/data/$APPNAME/data
 DEFAULT_LOCAL_BACKUP=.store/
 DEFAULT_HOSTCTRL="minikube ssh"
+DEFAULT_STORAGECLASS=../kube-apps-platform/store/hostpath.sh
 DEFAULT_NODE_SSH_PORT=32767
 DEFAULT_DB_TYPE=postgres
 DEFAULT_GPGKEYNAME=$USERNAME
@@ -59,6 +60,7 @@ APP_BACKUP=`cat $CONFIG/app_backup 2>/dev/null`
 APP_DATA=`cat $CONFIG/app_data 2>/dev/null`
 LOCAL_BACKUP=`cat $CONFIG/local_backup 2>/dev/null`
 HOSTCTRL=`cat $CONFIG/hostctrl 2>/dev/null`
+STORAGECLASS=`cat $CONFIG/storageclass 2>/dev/null`
 NODE_SSH_PORT=`cat $CONFIG/node_ssh_port 2>/dev/null`
 DB_TYPE=`cat $CONFIG/db_type 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
@@ -82,6 +84,7 @@ case $1 in
 		echo - APP_DATA: $APP_DATA
 		echo - LOCAL_BACKUP: $LOCAL_BACKUP
 		echo - HOSTCTRL: $HOSTCTRL
+		echo - STORAGECLASS: $STORAGECLASS
 		echo - NODE_SSH_PORT: $NODE_SSH_PORT
 		echo - DB_TYPE: $DB_TYPE
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
@@ -129,6 +132,11 @@ case $1 in
 				HOSTCTRL=${1:-$DEFAULT_HOSTCTRL}
 				echo $HOSTCTRL > ${CONFIG}/hostctrl
 				;;
+			"storageclass")
+				shift
+				STORAGECLASS=${1:-$DEFAULT_STORAGECLASS}
+				echo $STORAGECLASS > ${CONFIG}/storageclass
+				;;
 			"node_ssh_port")
 				shift
 				PORT=${1:-$DEFAULT_NODE_SSH_PORT}
@@ -162,6 +170,8 @@ case $1 in
 				echo "				Ex: $(basename $0) config local_backup $DEFAULT_LOCAL_BACKUP"
 				echo "	hostctrl		The ctrl command to control host."
 				echo "				Ex: $(basename $0) config hostctrl $DEFAULT_HOSTCTRL"
+				echo "	storageclass		The storageclass command to create pv."
+				echo "				Ex: $(basename $0) config storageclass $DEFAULT_STORAGECLASS"
 				echo "	node_ssh_port		The gitea SSH port exposed on kube node."
 				echo "				Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
 				echo "	db_type			Two databases type: sqlite3 or postgres."
@@ -196,8 +206,6 @@ case $1 in
 				fi
 				;;
 			"load")
-				cd $KUBEAPPS_PLATFORM_DIR
-				./do app $APPNAME off
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
 					[ -e ${STORE}/state/$STATENAME-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-$APPNAME-config.tgz
 				fi
@@ -214,8 +222,6 @@ case $1 in
 					# gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | ws ssh ws -- "sudo tar -C $APP_BASEDIR -x"
 					gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | eval $HOSTCTRL -- \"sudo tar -C \$APP_BASEDIR -x\"
 				fi
-				./do app $APPNAME on
-				cd -
 				;;
 			"list"|*)
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
@@ -239,22 +245,30 @@ case $1 in
 				;;
 		esac
 		;;
-	"init-on")
+	"init")
 		eval $HOSTCTRL -- \"sudo mkdir -p $APP_BACKUP \; sudo mkdir -p $APP_DATA\"
 		#store/hostpath.sh app-$APPNAME cold 1000Gi $APP_BACKUP
 		#store/hostpath.sh app-$APPNAME normal 100Gi $APP_DATA
 		#store/cephfs.sh app-$APPNAME cold 1000Gi
 		#store/cephfs.sh app-$APPNAME normal 100Gi
-		store/$STORAGECLASS app-$APPNAME cold 1000Gi $APP_BACKUP
-		store/$STORAGECLASS app-$APPNAME normal 100Gi $APP_DATA
+		$STORAGECLASS app-$APPNAME cold 1000Gi $APP_BACKUP
+		$STORAGECLASS app-$APPNAME normal 100Gi $APP_DATA
 		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME init
+		cd -
+		;;
+	"on")
+		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME on
 		cd -
 		;;
-	"off-clean")
+	"off")
 		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME off
+		cd -
+		;;
+	"clean")
+		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME clean
 		cd -
 		kubectl delete pv app-$APPNAME-cold
@@ -266,7 +280,7 @@ case $1 in
 		echo $(basename $0) config ...
 		echo $(basename $0) secret-create
 		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name]"
-		echo $(basename $0) init-on/off-clean
+		echo $(basename $0) init/on/off/clean
 		;;
 esac
 
