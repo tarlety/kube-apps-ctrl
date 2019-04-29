@@ -35,7 +35,7 @@
 #------------------------------------------------------------------------------
 # Environments:
 
-SCRIPTNAME=test-app-gitea-in-minikube
+SCRIPTNAME=app-gitea-ctrl
 APPNAME=gitea
 
 SECRET=${SECRET:-".secret/$SCRIPTNAME"}
@@ -46,7 +46,8 @@ DEFAULT_KUBEAPPSDIR=../
 DEFAULT_APP_BASEDIR=/data/$APPNAME
 DEFAULT_APP_BACKUP=/data/$APPNAME/backup
 DEFAULT_APP_DATA=/data/$APPNAME/data
-DEFAULT_LOCAL_BACKUP=/hosthome/$USER/store/
+DEFAULT_LOCAL_BACKUP=.store/
+DEFAULT_HOSTCTRL="minikube ssh"
 DEFAULT_NODE_SSH_PORT=32767
 DEFAULT_DB_TYPE=sqlite3
 DEFAULT_GPGKEYNAME=$USERNAME
@@ -57,6 +58,7 @@ APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
 APP_BACKUP=`cat $CONFIG/app_backup 2>/dev/null`
 APP_DATA=`cat $CONFIG/app_data 2>/dev/null`
 LOCAL_BACKUP=`cat $CONFIG/local_backup 2>/dev/null`
+HOSTCTRL=`cat $CONFIG/hostctrl 2>/dev/null`
 NODE_SSH_PORT=`cat $CONFIG/node_ssh_port 2>/dev/null`
 DB_TYPE=`cat $CONFIG/db_type 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
@@ -79,6 +81,7 @@ case $1 in
 		echo - APP_BACKUP: $APP_BACKUP
 		echo - APP_DATA: $APP_DATA
 		echo - LOCAL_BACKUP: $LOCAL_BACKUP
+		echo - HOSTCTRL: $HOSTCTRL
 		echo - NODE_SSH_PORT: $NODE_SSH_PORT
 		echo - DB_TYPE: $DB_TYPE
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
@@ -121,6 +124,11 @@ case $1 in
 				LOCAL_BACKUP=${1:-$DEFAULT_LOCAL_BACKUP}
 				echo $LOCAL_BACKUP > ${CONFIG}/local_backup
 				;;
+			"hostctrl")
+				shift
+				HOSTCTRL=${1:-$DEFAULT_HOSTCTRL}
+				echo $HOSTCTRL > ${CONFIG}/hostctrl
+				;;
 			"node_ssh_port")
 				shift
 				PORT=${1:-$DEFAULT_NODE_SSH_PORT}
@@ -153,6 +161,8 @@ case $1 in
 				echo "	local_backup	In order to exchange files between host and minikube, the path shall begin with '/hosthome'."
 				echo "			The '/hosthome' in minikube maps to the path '/home' in host."
 				echo "			Ex: $(basename $0) config local_backup $DEFAULT_LOCAL_BACKUP"
+				echo "	hostctrl	The ctrl command to control host."
+				echo "			Ex: $(basename $0) config hostctrl $DEFAULT_HOSTCTRL"
 				echo "	node_ssh_port	The gitea SSH port exposed on minikube."
 				echo "			Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
 				echo "	db_type		Two databases type: sqlite3 or postgres."
@@ -181,12 +191,13 @@ case $1 in
 					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					minikube ssh -- "sudo mkdir -p $LOCAL_BACKUP"
-					minikube ssh -- "sudo tar -C $APP_BASEDIR -c . | gzip - > $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz"
+					# minikube ssh -- "sudo tar -C $APP_BASEDIR -c . | gzip - > $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz"
+					# ws ssh ws -- "sudo tar -C $APP_BASEDIR -c ." | gzip - > $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz
+					eval $HOSTCTRL -- \"sudo tar -C \$APP_BASEDIR -c .\" | gzip - > $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz
 				fi
 				;;
 			"load")
-				cd ..
+				cd $KUBEAPPSDIR
 				./do app $APPNAME off
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
 					[ -e ${STORE}/state/$STATENAME-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-$APPNAME-config.tgz
@@ -199,9 +210,10 @@ case $1 in
 					fi
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					minikube ssh -- "sudo rm -rf $APP_BASEDIR"
-					minikube ssh -- "sudo mkdir -p $APP_BASEDIR"
-					minikube ssh -- "cd $APP_BASEDIR ; gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | sudo tar -C $APP_BASEDIR -x"
+					eval $HOSTCTRL -- \"sudo rm -rf \$APP_BASEDIR \; sudo mkdir -p \$APP_BASEDIR\"
+					# minikube ssh -- "cd $APP_BASEDIR ; gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | sudo tar -C $APP_BASEDIR -x"
+					# gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | ws ssh ws -- "sudo tar -C $APP_BASEDIR -x"
+					gunzip -c $LOCAL_BACKUP/$STATENAME-$APPNAME-data.tgz | eval $HOSTCTRL -- \"sudo tar -C \$APP_BASEDIR -x\"
 				fi
 				./do app $APPNAME on
 				cd -
@@ -228,31 +240,34 @@ case $1 in
 				;;
 		esac
 		;;
-	"clean-on")
+	"init-on")
+		eval $HOSTCTRL -- \"sudo mkdir -p $APP_BACKUP \; sudo mkdir -p $APP_DATA\"
+		#store/hostpath.sh app-$APPNAME cold 1000Gi $APP_BACKUP
+		#store/hostpath.sh app-$APPNAME normal 100Gi $APP_DATA
+		#store/cephfs.sh app-$APPNAME cold 1000Gi
+		#store/cephfs.sh app-$APPNAME normal 100Gi
+		store/$STORAGECLASS app-$APPNAME cold 1000Gi $APP_BACKUP
+		store/$STORAGECLASS app-$APPNAME normal 100Gi $APP_DATA
 		cd $KUBEAPPSDIR
-		minikube ssh -- "sudo mkdir -p $APP_BACKUP"
-		minikube ssh -- "sudo mkdir -p $APP_DATA"
-		store/hostpath.sh app-$APPNAME cold 1000Gi $APP_BACKUP
-		store/hostpath.sh app-$APPNAME normal 100Gi $APP_DATA
 		./do app $APPNAME init
 		./do app $APPNAME on
 		cd -
 		;;
-	"clean-off")
+	"off-clean")
 		cd $KUBEAPPSDIR
 		./do app $APPNAME off
 		./do app $APPNAME clean
+		cd -
 		kubectl delete pv app-$APPNAME-cold
 		kubectl delete pv app-$APPNAME-normal
-		minikube ssh -- "sudo rm -rf $APP_BASEDIR"
-		cd -
+		eval $HOSTCTRL -- \"sudo rm -rf \$APP_BASEDIR\"
 		;;
 	*)
 		echo $(basename $0) env
 		echo $(basename $0) config ...
 		echo $(basename $0) secret-create
 		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name]"
-		echo $(basename $0) clean-on/clean-off
+		echo $(basename $0) init-on/off-clean
 		;;
 esac
 
