@@ -42,7 +42,7 @@ SECRET=${SECRET:-".secret/$SCRIPTNAME"}
 CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
 
 DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
-DEFAULT_KUBEAPPSPLATFORM_DIR=../
+DEFAULT_KUBEAPPS_PLATFORM_DIR=../
 DEFAULT_APP_BASEDIR=/data/$APPNAME
 DEFAULT_APP_BACKUP=/data/$APPNAME/backup
 DEFAULT_APP_DATA=/data/$APPNAME/data
@@ -53,7 +53,7 @@ DEFAULT_DB_TYPE=sqlite3
 DEFAULT_GPGKEYNAME=$USERNAME
 
 STORE=`cat $CONFIG/store 2>/dev/null`
-KUBEAPPSPLATFORM_DIR=`cat $CONFIG/kubeappsplatform_dir 2>/dev/null`
+KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
 APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
 APP_BACKUP=`cat $CONFIG/app_backup 2>/dev/null`
 APP_DATA=`cat $CONFIG/app_data 2>/dev/null`
@@ -76,7 +76,7 @@ case $1 in
 		echo - SECRET: $SECRET
 		echo - CONFIG: $CONFIG
 		echo - STORE: $STORE
-		echo - KUBEAPPSPLATFORM_DIR: $KUBEAPPSPLATFORM_DIR
+		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
 		echo - APP_BASEDIR: $APP_BASEDIR
 		echo - APP_BACKUP: $APP_BACKUP
 		echo - APP_DATA: $APP_DATA
@@ -101,8 +101,8 @@ case $1 in
 				;;
 			"kubeapps_platform_dir")
 				shift
-				KUBEAPPSPLATFORM_DIR=${1:-$DEFAULT_KUBEAPPSPLATFORM_DIR}
-				echo $KUBEAPPSPLATFORM_DIR > ${CONFIG}/kubeapps_platform_dirdir
+				KUBEAPPS_PLATFORM_DIR=${1:-$DEFAULT_KUBEAPPS_PLATFORM_DIR}
+				echo $KUBEAPPS_PLATFORM_DIR > ${CONFIG}/kubeapps_platform_dir
 				;;
 			"app_base_dir")
 				shift
@@ -151,7 +151,7 @@ case $1 in
 				echo "	store			The local repository for state."
 				echo "				Ex: $(basename $0) config store $DEFAULT_STORE"
 				echo "	kubeapps_platform_dir	Where the kube_apps_platform scripts are installed."
-				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPSPLATFORM_DIR"
+				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
 				echo "	app_base_dir		The base directory in minikube."
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
 				echo "	app_backup_dir		Apps backup data here."
@@ -197,7 +197,7 @@ case $1 in
 				fi
 				;;
 			"load")
-				cd $KUBEAPPSPLATFORM_DIR
+				cd $KUBEAPPS_PLATFORM_DIR
 				./do app $APPNAME off
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
 					[ -e ${STORE}/state/$STATENAME-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-$APPNAME-config.tgz
@@ -248,13 +248,13 @@ case $1 in
 		#store/cephfs.sh app-$APPNAME normal 100Gi
 		store/$STORAGECLASS app-$APPNAME cold 1000Gi $APP_BACKUP
 		store/$STORAGECLASS app-$APPNAME normal 100Gi $APP_DATA
-		cd $KUBEAPPSPLATFORM_DIR
+		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME init
 		./do app $APPNAME on
 		cd -
 		;;
 	"off-clean")
-		cd $KUBEAPPSPLATFORM_DIR
+		cd $KUBEAPPS_PLATFORM_DIR
 		./do app $APPNAME off
 		./do app $APPNAME clean
 		cd -
