@@ -126,7 +126,7 @@ case $1 in
 				echo "				Ex: $(basename $0) config store $DEFAULT_STORE"
 				echo "	kubeapps_platform_dir	Where the kube_apps_platform scripts are installed."
 				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
-				echo "	app_base_dir		The app stores runtime data under /data and backup data under /backup."
+				echo "	app_base_dir		The base directory on node, where the app stores data and backups."
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
 				echo "	node_ssh_port		The gitea SSH port exposed on kube node."
 				echo "				Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
