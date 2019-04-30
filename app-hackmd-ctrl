@@ -42,11 +42,17 @@ SECRET=${SECRET:-".secret/$SCRIPTNAME"}
 CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
 
 DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
+DEFAULT_BASE_CONFIG=nop
+DEFAULT_BASE_SECRET=nop
+DEFAULT_BASE_DATA=nop
 DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
 DEFAULT_APP_BASEDIR=/data/$APPNAME
 DEFAULT_GPGKEYNAME=$USERNAME
 
 STORE=`cat $CONFIG/store 2>/dev/null`
+BASE_CONFIG=`cat $CONFIG/base_config 2>/dev/null`
+BASE_SECRET=`cat $CONFIG/base_secret 2>/dev/null`
+BASE_DATA=`cat $CONFIG/base_data 2>/dev/null`
 KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
 APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
@@ -107,7 +113,7 @@ case $1 in
 				echo "				Ex: $(basename $0) config store $DEFAULT_STORE"
 				echo "	kubeapps_platform_dir	Where the kube_apps_platform scripts are installed."
 				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
-				echo "	app_base_dir		The app stores runtime data under /data and backup data under /backup."
+				echo "	app_base_dir		The base directory on node, where the app stores data and backups."
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
 				echo "	gpg			the gpg key used to encrypt data, like secrets."
 				echo "				Ex: $(basename $0) config gpg $DEFAULT_GPGKEYNAME"
@@ -127,7 +133,8 @@ case $1 in
 		case $ACTION in
 			"save")
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					tar -zcf ${STORE}/state/$STATENAME-$APPNAME-config.tgz .config
+					tar -zcf ${STORE}/state/$STATENAME-${APPNAME}-config.tgz ${CONFIG}
+					echo $STATENAME > ${CONFIG}/base_config
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
 					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
@@ -140,7 +147,8 @@ case $1 in
 				;;
 			"load")
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					[ -e ${STORE}/state/$STATENAME-$APPNAME-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-$APPNAME-config.tgz
+					[ -e ${STORE}/state/$STATENAME-${APPNAME}-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-${APPNAME}-config.tgz
+					echo $STATENAME > ${CONFIG}/base_config
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
 					if [ -e ${STORE}/state/$STATENAME-$APPNAME-secret.enc ]
@@ -152,25 +160,26 @@ case $1 in
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
 					./do ssh "sudo rm -rf $APP_BASEDIR ; sudo mkdir -p $APP_BASEDIR"
-					gpg -d ${STORE}/data/$STATENAME-$APPNAME-data.tgz.enc | gunzip -c $STORE/data/$STATENAME-$APPNAME-data.tgz - | ./do ssh "sudo tar -C $APP_BASEDIR -xf -"
+					gpg -d ${STORE}/data/$STATENAME-$APPNAME-data.tgz.enc | gunzip -c - | ./do ssh "sudo tar -C $APP_BASEDIR -xf -"
 					cd -
+					echo $STATENAME > ${CONFIG}/base_data
 				fi
 				;;
 			"list"|*)
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					echo \#\# CONFIG:
+					echo \#\# CONFIG: $BASE_CONFIG
 					cd ${STORE}/state
 					ls *-$APPNAME-config.tgz 2>/dev/null | sed "s/-${APPNAME}-config.tgz//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
-					echo \#\# SECRET:
+					echo \#\# SECRET: $BASE_SECRET
 					cd ${STORE}/state
 					ls *-$APPNAME-secret.enc 2>/dev/null | sed "s/-${APPNAME}-secret.enc//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					echo \#\# DATA:
+					echo \#\# DATA: $BASE_DATA
 					cd ${STORE}/data
 					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/-${APPNAME}-data.tgz.enc//"
 					cd - &>/dev/null
@@ -181,10 +190,12 @@ case $1 in
 	"init")
 		cd $KUBEAPPS_PLATFORM_DIR
 		./do ssh "sudo mkdir -p $APP_BACKUP ; sudo mkdir -p $APP_DATA"
-		./do store create app-$APPNAME cold 1000Gi $APP_BACKUP
-		./do store create app-$APPNAME normal 100Gi $APP_DATA
+		./do store create app-$APPNAME cold 1000Gi $APP_BACKUP backup
+		./do store create app-$APPNAME normal 100Gi $APP_DATA data
 		./do app $APPNAME init
 		cd -
+
+		echo NOTICE: install required secrets to access the storage.
 		;;
 	"on")
 		cd $KUBEAPPS_PLATFORM_DIR
