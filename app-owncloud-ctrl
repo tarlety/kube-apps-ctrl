@@ -139,6 +139,7 @@ case $1 in
 					echo $STATENAME > ${CONFIG}/base_config
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
+					mv -f ${STORE}/state/$STATENAME-$APPNAME-secret.enc ${STORE}/state/$STATENAME-bak-$APPNAME-secret.enc 2>/dev/null
 					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
 					echo $STATENAME > ${CONFIG}/base_secret
 				fi
@@ -160,6 +161,7 @@ case $1 in
 						kubectl delete secret passwords -n app-$APPNAME
 						gpg -d ${STORE}/state/$STATENAME-$APPNAME-secret.enc | kubectl apply -f -
 					fi
+					echo $STATENAME > ${CONFIG}/base_secret
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
