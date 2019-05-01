@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 # Copyright (c) 2019, tarlety@gmail.com
 #
-# Zerus Scripting Standard v0.2.0
+# Zerus Scripting Standard v0.3.0
 #
 # This standard defines script state management framework.
 # Following this framework, you can manage app states in a consistent way.
@@ -66,19 +66,20 @@ APP_DATA=$APP_BASEDIR/data
 case $1 in
 	"env")
 		echo =========================================================================
-		echo \#\# SCRIPT NAME: $SCRIPTNAME
+		echo "## SCRIPT NAME: $SCRIPTNAME"
+		echo - STORE: $STORE
 		echo - SECRET: $SECRET
 		echo - CONFIG: $CONFIG
-		echo - STORE: $STORE
 		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
 		echo - APP_BASEDIR: $APP_BASEDIR
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
-		echo \#\# REQUIREMENT:
+		echo "## REQUIREMENT:"
 		echo - kubectl: $(which kubectl)
 		echo - gpg: $(which gpg)
 		echo - tar: $(which tar)
 		echo - gzip: $(which gzip)
 		echo - gunzip: $(which gunzip)
+		echo - colordiff: $(which colordiff)
 		echo =========================================================================
 		;;
 	"config")
@@ -133,16 +134,19 @@ case $1 in
 		case $ACTION in
 			"save")
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+					$0 env > ${CONFIG}/env
 					tar -zcf ${STORE}/state/$STATENAME-${APPNAME}-config.tgz ${CONFIG}
 					echo $STATENAME > ${CONFIG}/base_config
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
 					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
+					echo $STATENAME > ${CONFIG}/base_secret
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
 					./do ssh "sudo tar -C $APP_BASEDIR -c ." | gzip - | gpg -ear ${GPGKEYNAME} -o $STORE/data/$STATENAME-$APPNAME-data.tgz.enc
 					cd -
+					echo $STATENAME > ${CONFIG}/base_data
 				fi
 				;;
 			"load")
@@ -156,6 +160,7 @@ case $1 in
 						kubectl delete secret passwords -n app-$APPNAME
 						gpg -d ${STORE}/state/$STATENAME-$APPNAME-secret.enc | kubectl apply -f -
 					fi
+					echo $STATENAME > ${CONFIG}/base_secret
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
 					cd $KUBEAPPS_PLATFORM_DIR
@@ -166,24 +171,29 @@ case $1 in
 				fi
 				;;
 			"list"|*)
+				RED='\033[0;31m'
+				NC='\033[0m'
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					echo \#\# CONFIG: $BASE_CONFIG
+					echo -e "${RED}## CONFIG: ${BASE_CONFIG}${NC}"
 					cd ${STORE}/state
 					ls *-$APPNAME-config.tgz 2>/dev/null | sed "s/-${APPNAME}-config.tgz//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
-					echo \#\# SECRET: $BASE_SECRET
+					echo -e "${RED}## SECRET: ${BASE_SECRET}${NC}"
 					cd ${STORE}/state
 					ls *-$APPNAME-secret.enc 2>/dev/null | sed "s/-${APPNAME}-secret.enc//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					echo \#\# DATA: $BASE_DATA
+					echo -e "${RED}## DATA: ${BASE_DATA}${NC}"
 					cd ${STORE}/data
 					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/-${APPNAME}-data.tgz.enc//"
 					cd - &>/dev/null
 				fi
+
+				echo -e "${RED}## ENV: STATE | CURRENT:${NC}"
+				$0 env | colordiff -y --suppress-common-lines ${CONFIG}/env -
 				;;
 		esac
 		;;
@@ -219,7 +229,7 @@ case $1 in
 		echo $(basename $0) env
 		echo $(basename $0) config ...
 		echo $(basename $0) secret-create
-		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name]"
+		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name, ex: date-stage-env]"
 		echo $(basename $0) init/on/off/clean
 		;;
 esac
