@@ -193,7 +193,7 @@ case $1 in
 					cd - &>/dev/null
 				fi
 
-				echo -e "${RED}## ENV: STATE | CURRENT:${NC}"
+				echo -e "${RED}## ENV: STATE | CURRENT${NC}"
 				$0 env | colordiff -y --suppress-common-lines ${CONFIG}/env -
 				;;
 		esac
