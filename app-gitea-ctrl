@@ -35,8 +35,9 @@
 #------------------------------------------------------------------------------
 # Environments:
 
-SCRIPTNAME=app-gitea-ctrl
-APPNAME=gitea
+VERSION=0.3.0
+SCRIPTNAME=$(basename $0)
+APPNAME=$(echo $SCRIPTNAME | sed -e 's/app-\(.*\)-ctrl/\1/g')
 
 SECRET=${SECRET:-".secret/$SCRIPTNAME"}
 CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
@@ -48,7 +49,6 @@ DEFAULT_BASE_DATA=nop
 DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
 DEFAULT_APP_BASEDIR=/data/$APPNAME
 DEFAULT_NODE_SSH_PORT=32767
-DEFAULT_DB_TYPE=postgres
 DEFAULT_GPGKEYNAME=$USERNAME
 
 STORE=`cat $CONFIG/store 2>/dev/null`
@@ -58,14 +58,12 @@ BASE_DATA=`cat $CONFIG/base_data 2>/dev/null`
 KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
 APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
 NODE_SSH_PORT=`cat $CONFIG/node_ssh_port 2>/dev/null`
-DB_TYPE=`cat $CONFIG/db_type 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
 
 APP_BACKUP=$APP_BASEDIR/backup
 APP_DATA=$APP_BASEDIR/data
 
 export NODE_SSH_PORT
-export DB_TYPE
 
 #------------------------------------------------------------------------------
 # Commands
@@ -74,15 +72,16 @@ case $1 in
 	"env")
 		echo =========================================================================
 		echo "## SCRIPT NAME: $SCRIPTNAME"
+		echo - VERSION: ${VERSION}
 		echo - STORE: $STORE
 		echo - SECRET: $SECRET
 		echo - CONFIG: $CONFIG
 		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
 		echo - APP_BASEDIR: $APP_BASEDIR
 		echo - NODE_SSH_PORT: $NODE_SSH_PORT
-		echo - DB_TYPE: $DB_TYPE
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
 		echo "## REQUIREMENT:"
+		echo - kubeapps-platform: $($KUBEAPPS_PLATFORM_DIR/do version)
 		echo - kubectl: $(which kubectl)
 		echo - gpg: $(which gpg)
 		echo - tar: $(which tar)
@@ -115,11 +114,6 @@ case $1 in
 				PORT=${1:-$DEFAULT_NODE_SSH_PORT}
 				echo $PORT > ${CONFIG}/node_ssh_port
 				;;
-			"db_type")
-				shift
-				DB_TYPE=${1:-$DEFAULT_DB_TYPE}
-				echo $DB_TYPE > ${CONFIG}/db_type
-				;;
 			"gpg")
 				shift
 				GPGKEYNAME=${1:-$DEFAULT_GPGKEYNAME}
@@ -137,8 +131,6 @@ case $1 in
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
 				echo "	node_ssh_port		The gitea SSH port exposed on kube node."
 				echo "				Ex: $(basename $0) config node_ssh_port $DEFAULT_NODE_SSH_PORT"
-				echo "	db_type			Two databases type: sqlite3 or postgres."
-				echo "				Ex: $(basename $0) config db_type $DEFAULT_DB_TYPE"
 				echo "	gpg			the gpg key used to encrypt data, like secrets."
 				echo "				Ex: $(basename $0) config gpg $DEFAULT_GPGKEYNAME"
 				;;
