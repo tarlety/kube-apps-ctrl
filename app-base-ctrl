@@ -80,8 +80,9 @@ case $1 in
 		echo - APP_BASEDIR: $APP_BASEDIR
 		echo - NODE_PORTS: $NODE_PORTS
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
-		echo "## REQUIREMENT:"
+		echo "## DEPENDENCY:"
 		echo - kubeapps-platform: $($KUBEAPPS_PLATFORM_DIR/do version)
+		echo "## REQUIREMENT:"
 		echo - kubectl: $(which kubectl)
 		echo - gpg: $(which gpg)
 		echo - tar: $(which tar)
@@ -187,28 +188,28 @@ case $1 in
 				fi
 				;;
 			"list"|*)
-				RED='\033[0;31m'
+				HC='\033[0;36m'
 				NC='\033[0m'
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					echo -e "${RED}## CONFIG: ${BASE_CONFIG}${NC}"
+					echo -e "${HC}## CONFIG: ${BASE_CONFIG}${NC}"
 					cd ${STORE}/state
 					ls *-$APPNAME-config.tgz 2>/dev/null | sed "s/-${APPNAME}-config.tgz//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
-					echo -e "${RED}## SECRET: ${BASE_SECRET}${NC}"
+					echo -e "${HC}## SECRET: ${BASE_SECRET}${NC}"
 					cd ${STORE}/state
 					ls *-$APPNAME-secret.enc 2>/dev/null | sed "s/-${APPNAME}-secret.enc//"
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					echo -e "${RED}## DATA: ${BASE_DATA}${NC}"
+					echo -e "${HC}##   DATA: ${BASE_DATA}${NC}"
 					cd ${STORE}/data
 					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/-${APPNAME}-data.tgz.enc//"
 					cd - &>/dev/null
 				fi
 
-				echo -e "${RED}## ENV: STATE | CURRENT${NC}"
+				echo -e "${HC}##    ENV: STATE | CURRENT${NC}"
 				$0 env | colordiff -y --suppress-common-lines ${CONFIG}/env -
 				;;
 		esac
