@@ -48,6 +48,7 @@ DEFAULT_BASE_SECRET=nop
 DEFAULT_BASE_DATA=nop
 DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
 DEFAULT_APP_BASEDIR=/data/$APPNAME
+DEFAULT_NODE_PORTS=32767
 DEFAULT_GPGKEYNAME=$USERNAME
 
 STORE=`cat $CONFIG/store 2>/dev/null`
@@ -56,10 +57,13 @@ BASE_SECRET=`cat $CONFIG/base_secret 2>/dev/null`
 BASE_DATA=`cat $CONFIG/base_data 2>/dev/null`
 KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
 APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
+NODE_PORTS=`cat $CONFIG/node_ports 2>/dev/null`
 GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
 
 APP_BACKUP=$APP_BASEDIR/backup
 APP_DATA=$APP_BASEDIR/data
+
+export NODE_PORTS
 
 #------------------------------------------------------------------------------
 # Commands
@@ -74,6 +78,7 @@ case $1 in
 		echo - CONFIG: $CONFIG
 		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
 		echo - APP_BASEDIR: $APP_BASEDIR
+		echo - NODE_PORTS: $NODE_PORTS
 		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
 		echo "## REQUIREMENT:"
 		echo - kubeapps-platform: $($KUBEAPPS_PLATFORM_DIR/do version)
@@ -104,6 +109,11 @@ case $1 in
 				APP_BASEDIR=${1:-$DEFAULT_APP_BASEDIR}
 				echo $APP_BASEDIR > ${CONFIG}/app_basedir
 				;;
+			"node_ports")
+				shift
+				PORTS=${1:-$DEFAULT_NODE_PORTS}
+				echo $PORTS > ${CONFIG}/node_ports
+				;;
 			"gpg")
 				shift
 				GPGKEYNAME=${1:-$DEFAULT_GPGKEYNAME}
@@ -119,6 +129,8 @@ case $1 in
 				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
 				echo "	app_base_dir		The base directory on node, where the app stores data and backups."
 				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
+				echo "	node_ports		The ports exposed on worker node."
+				echo "				Ex: $(basename $0) config node_ports $DEFAULT_NODE_PORTS"
 				echo "	gpg			the gpg key used to encrypt data, like secrets."
 				echo "				Ex: $(basename $0) config gpg $DEFAULT_GPGKEYNAME"
 				;;
