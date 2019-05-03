@@ -246,7 +246,6 @@ case $1 in
 		./do app $APPNAME clean
 		./do store delete app-$APPNAME cold
 		./do store delete app-$APPNAME normal
-		./do ssh "sudo rm -rf $APP_BASEDIR"
 		cd -
 		;;
 	*)
