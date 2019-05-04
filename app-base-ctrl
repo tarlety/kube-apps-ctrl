@@ -188,7 +188,7 @@ case $1 in
 				fi
 				;;
 			"list"|*)
-				HC='\033[0;36m'
+				HC='\033[0;93m'
 				NC='\033[0m'
 				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
 					echo -e "${HC}## CONFIG: ${BASE_CONFIG}${NC}"
@@ -203,13 +203,13 @@ case $1 in
 					cd - &>/dev/null
 				fi
 				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					echo -e "${HC}##   DATA: ${BASE_DATA}${NC}"
+					echo -e "${HC}## DATA  : ${BASE_DATA}${NC}"
 					cd ${STORE}/data
 					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/\(.*\)-${APPNAME}-data.tgz.enc/           \1/"
 					cd - &>/dev/null
 				fi
 
-				echo -e "${HC}##    ENV: STATE | CURRENT${NC}"
+				echo -e "${HC}## ENV   : STATE                                              | CURRENT${NC}"
 				$0 env | colordiff -y --suppress-common-lines ${CONFIG}/env -
 				;;
 		esac
