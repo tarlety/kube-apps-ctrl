@@ -69,6 +69,9 @@ export NODE_PORTS
 # Commands
 
 case $1 in
+	"version")
+		echo ${VERSION}
+		;;
 	"env")
 		echo =========================================================================
 		echo "## SCRIPT NAME: $SCRIPTNAME"
