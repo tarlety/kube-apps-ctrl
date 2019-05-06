@@ -159,7 +159,7 @@ case $1 in
 				fi
 				if [ "${TYPE}" == "secret" -o "${TYPE}" == "" ]; then
 					echo ${STATENAME} > ${CONFIG}/base_secret
-					mv -f ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc ${STORE}/state/${STATENAME}-bak-${APPNAME}-secret.enc 0>/dev/null
+					mv -f ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc ${STORE}/state/${STATENAME}-bak-${APPNAME}-secret.enc &>/dev/null
 					kubectl get secrets -n app-${APPNAME} passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc
 				fi
 				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
