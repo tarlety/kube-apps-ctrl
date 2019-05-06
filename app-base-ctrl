@@ -3,7 +3,7 @@
 #------------------------------------------------------------------------------
 # Copyright (c) 2019, tarlety@gmail.com
 #
-# Zerus Scripting Standard v0.3.0
+# Zerus Scripting Standard v0.4.0
 #
 # This standard defines script state management framework.
 # Following this framework, you can manage app states in a consistent way.
@@ -31,37 +31,35 @@
 #    3. Then, use "<scriptname> secret-create" to create secret files.
 #    4. Then, use "<scriptname> env" again to confirm the state is what you want.
 
-
 #------------------------------------------------------------------------------
 # Environments:
 
-VERSION=0.3.0
+VERSION=0.4.0
 SCRIPTNAME=$(basename $0)
-APPNAME=$(echo $SCRIPTNAME | sed -e 's/app-\(.*\)-ctrl/\1/g')
+APPNAME=$(echo ${SCRIPTNAME} | sed -e 's/app-\(.*\)-ctrl/\1/g')
+SECRET=${SECRET:-"${PWD}/.secret/${SCRIPTNAME}"}
+CONFIG=${CONFIG:-"${PWD}/.config/${SCRIPTNAME}"}
 
-SECRET=${SECRET:-".secret/$SCRIPTNAME"}
-CONFIG=${CONFIG:-".config/$SCRIPTNAME"}
-
-DEFAULT_STORE=${STORE:-".store/$SCRIPTNAME"}
+DEFAULT_STORE=${STORE:-".store/${SCRIPTNAME}"}
 DEFAULT_BASE_CONFIG=nop
 DEFAULT_BASE_SECRET=nop
 DEFAULT_BASE_DATA=nop
 DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
-DEFAULT_APP_BASEDIR=/data/$APPNAME
+DEFAULT_APP_BASEDIR=/data/${APPNAME}
 DEFAULT_NODE_PORTS=32767
-DEFAULT_GPGKEYNAME=$USERNAME
+DEFAULT_GPGKEYNAME=${USERNAME}
 
-STORE=`cat $CONFIG/store 2>/dev/null`
-BASE_CONFIG=`cat $CONFIG/base_config 2>/dev/null`
-BASE_SECRET=`cat $CONFIG/base_secret 2>/dev/null`
-BASE_DATA=`cat $CONFIG/base_data 2>/dev/null`
-KUBEAPPS_PLATFORM_DIR=`cat $CONFIG/kubeapps_platform_dir 2>/dev/null`
-APP_BASEDIR=`cat $CONFIG/app_basedir 2>/dev/null`
-NODE_PORTS=`cat $CONFIG/node_ports 2>/dev/null`
-GPGKEYNAME=`cat $CONFIG/gpgkeyname 2>/dev/null`
+STORE=`cat ${CONFIG}/store 2>/dev/null`
+BASE_CONFIG=`cat ${CONFIG}/base_config 2>/dev/null`
+BASE_SECRET=`cat ${CONFIG}/base_secret 2>/dev/null`
+BASE_DATA=`cat ${CONFIG}/base_data 2>/dev/null`
+KUBEAPPS_PLATFORM_DIR=`cat ${CONFIG}/kubeapps_platform_dir 2>/dev/null`
+APP_BASEDIR=`cat ${CONFIG}/app_basedir 2>/dev/null`
+NODE_PORTS=`cat ${CONFIG}/node_ports 2>/dev/null`
+GPGKEYNAME=`cat ${CONFIG}/gpgkeyname 2>/dev/null`
 
-APP_BACKUP=$APP_BASEDIR/backup
-APP_DATA=$APP_BASEDIR/data
+APP_BACKUP=${APP_BASEDIR}/backup
+APP_DATA=${APP_BASEDIR}/data
 
 export NODE_PORTS
 
@@ -74,17 +72,17 @@ case $1 in
 		;;
 	"env")
 		echo =========================================================================
-		echo "## SCRIPT NAME: $SCRIPTNAME"
+		echo "## SCRIPT NAME: ${SCRIPTNAME}"
 		echo - VERSION: ${VERSION}
-		echo - STORE: $STORE
-		echo - SECRET: $SECRET
-		echo - CONFIG: $CONFIG
-		echo - KUBEAPPS_PLATFORM_DIR: $KUBEAPPS_PLATFORM_DIR
-		echo - APP_BASEDIR: $APP_BASEDIR
-		echo - NODE_PORTS: $NODE_PORTS
-		echo - GPGKEYNAME: $GPGKEYNAME $(gpg -k $GPGKEYNAME 2>/dev/null | sed -n '2p' | xargs)
+		echo - STORE: ${STORE}
+		echo - SECRET: ${SECRET}
+		echo - CONFIG: ${CONFIG}
+		echo - KUBEAPPS_PLATFORM_DIR: ${KUBEAPPS_PLATFORM_DIR}
+		echo - APP_BASEDIR: ${APP_BASEDIR}
+		echo - NODE_PORTS: ${NODE_PORTS}
+		echo - GPGKEYNAME: ${GPGKEYNAME} $(gpg -k ${GPGKEYNAME} 2>/dev/null | sed -n '2p' | xargs)
 		echo "## DEPENDENCY:"
-		echo - kubeapps-platform: $($KUBEAPPS_PLATFORM_DIR/do version)
+		echo - kubeapps-platform: $(${KUBEAPPS_PLATFORM_DIR}/zss0 version)
 		echo "## REQUIREMENT:"
 		echo - kubectl: $(which kubectl)
 		echo - gpg: $(which gpg)
@@ -100,43 +98,43 @@ case $1 in
 		case $1 in
 			"store")
 				shift
-				STORE=${1:-$DEFAULT_STORE}
-				echo $STORE > ${CONFIG}/store
+				STORE=${1:-${DEFAULT_STORE}}
+				echo ${STORE} > ${CONFIG}/store
 				;;
 			"kubeapps_platform_dir")
 				shift
-				KUBEAPPS_PLATFORM_DIR=${1:-$DEFAULT_KUBEAPPS_PLATFORM_DIR}
-				echo $KUBEAPPS_PLATFORM_DIR > ${CONFIG}/kubeapps_platform_dir
+				KUBEAPPS_PLATFORM_DIR=${1:-${DEFAULT_KUBEAPPS_PLATFORM_DIR}}
+				echo ${KUBEAPPS_PLATFORM_DIR} > ${CONFIG}/kubeapps_platform_dir
 				;;
 			"app_base_dir")
 				shift
-				APP_BASEDIR=${1:-$DEFAULT_APP_BASEDIR}
-				echo $APP_BASEDIR > ${CONFIG}/app_basedir
+				APP_BASEDIR=${1:-${DEFAULT_APP_BASEDIR}}
+				echo ${APP_BASEDIR} > ${CONFIG}/app_basedir
 				;;
 			"node_ports")
 				shift
-				PORTS=${1:-$DEFAULT_NODE_PORTS}
-				echo $PORTS > ${CONFIG}/node_ports
+				PORTS=${1:-${DEFAULT_NODE_PORTS}}
+				echo ${PORTS} > ${CONFIG}/node_ports
 				;;
 			"gpg")
 				shift
-				GPGKEYNAME=${1:-$DEFAULT_GPGKEYNAME}
-				echo $GPGKEYNAME >  ${CONFIG}/gpgkeyname
+				GPGKEYNAME=${1:-${DEFAULT_GPGKEYNAME}}
+				echo ${GPGKEYNAME} >  ${CONFIG}/gpgkeyname
 				;;
 			*)
 				echo $(basename $0) config "<config_name>" "<config_value>"
 				echo ""
 				echo "config names:"
 				echo "	store			The local repository for state."
-				echo "				Ex: $(basename $0) config store $DEFAULT_STORE"
+				echo "				Ex: $(basename $0) config store ${DEFAULT_STORE}"
 				echo "	kubeapps_platform_dir	Where the kube_apps_platform scripts are installed."
-				echo "				Ex: $(basename $0) config kubeapps_platform_dir $DEFAULT_KUBEAPPS_PLATFORM_DIR"
+				echo "				Ex: $(basename $0) config kubeapps_platform_dir ${DEFAULT_KUBEAPPS_PLATFORM_DIR}"
 				echo "	app_base_dir		The base directory on node, where the app stores data and backups."
-				echo "				Ex: $(basename $0) config app_base_dir $DEFAULT_APP_BASEDIR"
+				echo "				Ex: $(basename $0) config app_base_dir ${DEFAULT_APP_BASEDIR}"
 				echo "	node_ports		The ports exposed on worker node."
-				echo "				Ex: $(basename $0) config node_ports $DEFAULT_NODE_PORTS"
+				echo "				Ex: $(basename $0) config node_ports ${DEFAULT_NODE_PORTS}"
 				echo "	gpg			the gpg key used to encrypt data, like secrets."
-				echo "				Ex: $(basename $0) config gpg $DEFAULT_GPGKEYNAME"
+				echo "				Ex: $(basename $0) config gpg ${DEFAULT_GPGKEYNAME}"
 				;;
 		esac
 		;;
@@ -150,62 +148,69 @@ case $1 in
 		STATENAME=$3
 
 		mkdir -p ${STORE}/state ${STORE}/data
-		case $ACTION in
+		case ${ACTION} in
 			"save")
-				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+				if [ "${TYPE}" == "config" -o "${TYPE}" == "" ]; then
+					echo ${STATENAME} > ${CONFIG}/base_config
 					$0 env > ${CONFIG}/env
-					tar -zcf ${STORE}/state/$STATENAME-${APPNAME}-config.tgz ${CONFIG}
-					echo $STATENAME > ${CONFIG}/base_config
+					cd ${CONFIG}
+					tar -zcf ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz .
+					cd - &> /dev/null
 				fi
-				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
-					mv -f ${STORE}/state/$STATENAME-$APPNAME-secret.enc ${STORE}/state/$STATENAME-bak-$APPNAME-secret.enc 2>/dev/null
-					kubectl get secrets -n app-$APPNAME passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/$STATENAME-$APPNAME-secret.enc
-					echo $STATENAME > ${CONFIG}/base_secret
+				if [ "${TYPE}" == "secret" -o "${TYPE}" == "" ]; then
+					echo ${STATENAME} > ${CONFIG}/base_secret
+					mv -f ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc ${STORE}/state/${STATENAME}-bak-${APPNAME}-secret.enc 0>/dev/null
+					kubectl get secrets -n app-${APPNAME} passwords -o yaml | gpg -ear ${GPGKEYNAME} -o ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc
 				fi
-				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					cd $KUBEAPPS_PLATFORM_DIR
-					./do ssh "sudo tar -C $APP_BASEDIR -c ." | gzip - | gpg -ear ${GPGKEYNAME} -o $STORE/data/$STATENAME-$APPNAME-data.tgz.enc
+				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
+					echo ${STATENAME} > ${CONFIG}/base_data
+					cd ${KUBEAPPS_PLATFORM_DIR}
+					./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | gzip - | gpg -ear ${GPGKEYNAME} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
 					cd -
-					echo $STATENAME > ${CONFIG}/base_data
 				fi
 				;;
 			"load")
-				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
-					[ -e ${STORE}/state/$STATENAME-${APPNAME}-config.tgz ] && tar -zxf ${STORE}/state/$STATENAME-${APPNAME}-config.tgz
-					echo $STATENAME > ${CONFIG}/base_config
-				fi
-				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
-					if [ -e ${STORE}/state/$STATENAME-$APPNAME-secret.enc ]
+				if [ "${TYPE}" == "config" -o "${TYPE}" == "" ]; then
+					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz ]
 					then
-						kubectl delete secret passwords -n app-$APPNAME
-						gpg -d ${STORE}/state/$STATENAME-$APPNAME-secret.enc | kubectl apply -f -
+						cd ${CONFIG}
+						tar -zxf ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz
+						cd - &> /dev/null
 					fi
-					echo $STATENAME > ${CONFIG}/base_secret
+					echo ${STATENAME} > ${CONFIG}/base_config
 				fi
-				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
-					cd $KUBEAPPS_PLATFORM_DIR
-					./do ssh "sudo rm -rf $APP_BASEDIR ; sudo mkdir -p $APP_BASEDIR"
-					gpg -d ${STORE}/data/$STATENAME-$APPNAME-data.tgz.enc | gunzip -c - | ./do ssh "sudo tar -C $APP_BASEDIR -xf -"
+				if [ "${TYPE}" == "secret" -o "${TYPE}" == "" ]; then
+					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc ]
+					then
+						kubectl delete secret passwords -n app-${APPNAME}
+						gpg -d ${STORE}/state/${STATENAME}-${APPNAME}-secret.enc | kubectl apply -f -
+					fi
+					echo ${STATENAME} > ${CONFIG}/base_secret
+				fi
+				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
+					cd ${KUBEAPPS_PLATFORM_DIR}
+					./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
+					gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./do ssh "sudo tar -C ${APP_BASEDIR} -xf -"
 					cd -
-					echo $STATENAME > ${CONFIG}/base_data
+					echo ${STATENAME} > ${CONFIG}/base_data
 				fi
 				;;
 			"list"|*)
 				HC='\033[0;93m'
 				NC='\033[0m'
-				if [ "$TYPE" == "config" -o "$TYPE" == "" ]; then
+				if [ "${TYPE}" == "config" -o "${TYPE}" == "" ]; then
 					echo -e "${HC}## CONFIG: ${BASE_CONFIG}${NC}"
 					cd ${STORE}/state
-					ls *-$APPNAME-config.tgz 2>/dev/null | sed "s/\(.*\)-${APPNAME}-config.tgz/           \1/"
+					ls *-${APPNAME}-config.tgz 2>/dev/null | sed "s/\(.*\)-${APPNAME}-config.tgz/           \1/"
 					cd - &>/dev/null
 				fi
-				if [ "$TYPE" == "secret" -o "$TYPE" == "" ]; then
+				if [ "${TYPE}" == "secret" -o "${TYPE}" == "" ]; then
 					echo -e "${HC}## SECRET: ${BASE_SECRET}${NC}"
 					cd ${STORE}/state
-					ls *-$APPNAME-secret.enc 2>/dev/null | sed "s/\(.*\)-${APPNAME}-secret.enc/           \1/"
+					ls *-${APPNAME}-secret.enc 2>/dev/null | sed "s/\(.*\)-${APPNAME}-secret.enc/           \1/"
 					cd - &>/dev/null
 				fi
-				if [ "$TYPE" == "data" -o "$TYPE" == "" ]; then
+				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
 					echo -e "${HC}## DATA  : ${BASE_DATA}${NC}"
 					cd ${STORE}/data
 					ls *-${APPNAME}-data.tgz.enc 2>/dev/null | sed "s/\(.*\)-${APPNAME}-data.tgz.enc/           \1/"
@@ -218,29 +223,29 @@ case $1 in
 		esac
 		;;
 	"init")
-		cd $KUBEAPPS_PLATFORM_DIR
-		./do ssh "sudo mkdir -p $APP_BACKUP ; sudo mkdir -p $APP_DATA"
-		./do app $APPNAME init
-		./do store create app-$APPNAME cold 1000Gi $APP_BACKUP backup
-		./do store create app-$APPNAME normal 100Gi $APP_DATA data
-		./do app $APPNAME preflight
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
+		./zss0 app ${APPNAME} init
+		./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
+		./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
+		./zss0 app ${APPNAME} preflight
 		cd -
 		;;
 	"on")
-		cd $KUBEAPPS_PLATFORM_DIR
-		./do app $APPNAME on
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 app ${APPNAME} on
 		cd -
 		;;
 	"off")
-		cd $KUBEAPPS_PLATFORM_DIR
-		./do app $APPNAME off
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 app ${APPNAME} off
 		cd -
 		;;
 	"clean")
-		cd $KUBEAPPS_PLATFORM_DIR
-		./do app $APPNAME clean
-		./do store delete app-$APPNAME cold
-		./do store delete app-$APPNAME normal
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 app ${APPNAME} clean
+		./zss0 store delete app-${APPNAME} cold
+		./zss0 store delete app-${APPNAME} normal
 		cd -
 		;;
 	*)
