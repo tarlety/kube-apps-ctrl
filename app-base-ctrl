@@ -52,7 +52,7 @@
 #==============================================================================
 # Environments:
 
-VERSION=0.5.1
+VERSION=0.5.2
 PROJECTNAME=kube-apps-ctrl
 APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
 STORE=${ZSS_STORE:-"${PWD}/.store"}/${PROJECTNAME}/${APPNAME}
@@ -193,12 +193,8 @@ case $1 in
 					echo ${STATENAME} > ${CONFIG}/base_secret
 					mv -f ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc ${STORE}/state/${STATENAME}-bak-${APPNAME}-secret.tgz.enc &>/dev/null
 					cd ${SECRET}
-					# AppImplementing Section: secret save
-					#------------------------------------------------------------------------------
-					kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
-						tar -zc | \
+					tar -zc . | \
 						gpg -ear ${GPGKEY} -o ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc
-					#------------------------------------------------------------------------------
 					cd - &> /dev/null
 				fi
 				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
@@ -227,10 +223,11 @@ case $1 in
 					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc ]
 					then
 						cd ${SECRET}
+						gpg -d ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc | tar xz
 						# AppImplementing Section: secret load
 						#------------------------------------------------------------------------------
 						kubectl delete secret passwords -n app-${APPNAME}
-						gpg -d ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc | tar xz -O | kubectl apply -f -
+						gpg -d ${SECRET}/passwords.enc | tar xz -O | kubectl apply -f -
 						#------------------------------------------------------------------------------
 						cd - &> /dev/null
 					fi
@@ -283,6 +280,8 @@ case $1 in
 		./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
 		./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
 		./zss0 app ${APPNAME} preflight
+		kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
+			gpg -ear ${GPGKEY} -o ${SECRET}/passwords.enc
 		cd -
 		;;
 	"on")
