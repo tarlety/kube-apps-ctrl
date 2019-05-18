@@ -197,7 +197,7 @@ case $1 in
 					#------------------------------------------------------------------------------
 					kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
 						tar -zc | \
-						gpg -ear ${GPGKEYNAME} -o ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc
+						gpg -ear ${GPGKEY} -o ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc
 					#------------------------------------------------------------------------------
 					cd - &> /dev/null
 				fi
@@ -208,7 +208,7 @@ case $1 in
 					cd ${KUBEAPPS_PLATFORM_DIR}
 					./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
 						gzip - | \
-						gpg -ear ${GPGKEYNAME} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
+						gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
 					cd -
 					#------------------------------------------------------------------------------
 				fi
