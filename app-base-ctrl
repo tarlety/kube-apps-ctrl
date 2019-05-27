@@ -227,7 +227,7 @@ case $1 in
 						# AppImplementing Section: secret load
 						#------------------------------------------------------------------------------
 						kubectl delete secret passwords -n app-${APPNAME}
-						gpg -d ${SECRET}/passwords.enc | tar xz -O | kubectl apply -f -
+						gpg -d ${SECRET}/passwords.enc | kubectl apply -f -
 						#------------------------------------------------------------------------------
 						cd - &> /dev/null
 					fi
