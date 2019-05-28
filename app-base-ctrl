@@ -1,9 +1,13 @@
 #!/bin/bash
 
+# 0.6.0 backlogs
+#   - derived: kube-apps-ctrl, docker-apps, node-adm, ceph-adm, kube-adm, zerus-test
+#   - be node-adm and ceph-adm aware
+
 #==============================================================================
 # Copyright (c) 2019, tarlety@gmail.com
 #
-# Zerus Scripting Standard v0.5.1
+# Zerus Scripting Standard v0.5.4
 #
 # This standard defines script state management framework.
 # Following this framework, you can manage app states in a consistent way.
@@ -35,6 +39,19 @@
 #     - *-data.tgz.enc
 #   - store/projectname/appname/others...
 #
+# ZSS framework and AppImplementing interface (zss0.impl)
+#
+#    - app
+#    - config
+#    - vars
+#    - requirment
+#    - secret-create
+#    - state-data-save
+#    - state-secret-load-post
+#    - state-data-load
+#    - command
+#    - usage
+#
 # Scnario:
 #
 #    1. First, use "<app> env" to check current configurations.
@@ -44,6 +61,9 @@
 #
 # Changelog:
 #
+#    v0.5.3:
+#       - introducing zss0.impl
+#
 #    v0.5.0:
 #       - new designed Store Structure
 #       - framework integrated: app-related sections are bounded by AppImplementing
@@ -52,10 +72,12 @@
 #==============================================================================
 # Environments:
 
-VERSION=0.5.2
-PROJECTNAME=kube-apps-ctrl
-APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-STORE=${ZSS_STORE:-"${PWD}/.store"}/${PROJECTNAME}/${APPNAME}
+ZSSVERSION=0.5.4
+# AppImplementing Section: app
+#------------------------------------------------------------------------------
+source ./zss0.impl app
+#------------------------------------------------------------------------------
+STORE=${ZSS_STORE:-"${HOME}/store"}/${PROJECTNAME}/${APPNAME}
 SECRET=${SECRET:-"${STORE}/secret"}
 CONFIG=${CONFIG:-"${STORE}/config"}
 DATA=${DATA:-"${STORE}/data"}
@@ -70,41 +92,36 @@ DEFAULT_GPGKEY=${USERNAME}
 
 # AppImplementing Section: configs
 #------------------------------------------------------------------------------
-CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
-declare -A CONFIG_DESCRIPTIONS
-CONFIG_DESCRIPTIONS=( \
-	["kubeapps_platform_dir"]="Where the kube_apps_platform scripts are installed." \
-	["app_basedir"]="The base directory on node, where the app stores data and backups." \
-	["node_ports"]="The ports exposed on worker node." \
-	)
-
-DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
-DEFAULT_APP_BASEDIR=/data/${APPNAME}
-DEFAULT_NODE_PORTS=32767
-
-KUBEAPPS_PLATFORM_DIR=`cat ${CONFIG}/kubeapps_platform_dir 2>/dev/null`
-APP_BASEDIR=`cat ${CONFIG}/app_basedir 2>/dev/null`
-NODE_PORTS=`cat ${CONFIG}/node_ports 2>/dev/null`
-
-APP_BACKUP=${APP_BASEDIR}/backup
-APP_DATA=${APP_BASEDIR}/data
+source ./zss0.impl config
 #------------------------------------------------------------------------------
+
+for KEY in ${CONFIGKEYS}
+do
+	VARNAME=$(echo ${KEY} | tr '[:lower:]' '[:upper:]')
+	eval ${VARNAME}='$(cat ${CONFIG}/$KEY 2>/dev/null)'
+done
 
 GPGKEY=`cat ${CONFIG}/gpgkey 2>/dev/null`
 
 eval export $(echo ${CONFIGKEYS} | tr '[:lower:]' '[:upper:]')
+
+# AppImplementing Section: vars
+#------------------------------------------------------------------------------
+source ./zss0.impl vars
+#------------------------------------------------------------------------------
 
 #==============================================================================
 # Commands
 
 case $1 in
 	"version")
-		echo ${VERSION}
+		echo ${ZSSVERSION} ${APPVERSION}
 		;;
 	"env")
 		echo =========================================================================
 		echo "## NAME: ${PROJECTNAME}/${APPNAME}"
-		echo - VERSION: ${VERSION}
+		echo - ZSSVERSION: ${ZSSVERSION}
+		echo - APPVERSION: ${APPVERSION}
 		echo - STORE: ${STORE}
 		echo - SECRET: $(echo $(cat $SALT 2>/dev/null) $(cat ${SECRET}/* | sha256sum 2>/dev/null) | sha1sum | cut -c1-8)
 		for KEY in ${CONFIGKEYS}
@@ -116,9 +133,7 @@ case $1 in
 		echo "## REQUIREMENT:"
 		# AppImplementing Section: requirement
 		#------------------------------------------------------------------------------
-		echo - kubectl: $(which kubectl)
-		echo - gzip: $(which gzip)
-		echo - gunzip: $(which gunzip)
+		source ./zss0.impl requirement
 		#------------------------------------------------------------------------------
 		echo - gpg: $(which gpg)
 		echo - tar: $(which tar)
@@ -129,21 +144,12 @@ case $1 in
 		shift
 		mkdir -p ${CONFIG}
 		case $1 in
-			# AppImplementing Section: config cases
-			#------------------------------------------------------------------------------
-			"kubeapps_platform_dir"|"app_basedir"|"node_ports")
-			#------------------------------------------------------------------------------
-				KEY=$1
-				VALUE_VAR=$(echo DEFAULT_${KEY} | tr '[:lower:]' '[:upper:]')
-				VALUE=${2:-$(eval echo \${${VALUE_VAR}})}
-				eval echo ${VALUE} > ${CONFIG}/${KEY}
-				;;
 			"gpgkey")
 				shift
 				GPGKEY=${1:-${DEFAULT_GPGKEY}}
 				echo ${GPGKEY} >  ${CONFIG}/gpgkey
 				;;
-			*)
+			""|"help")
 				echo "Usage: $(basename $0) config <key> <value>"
 				echo ""
 				echo "Config keys:"
@@ -159,6 +165,12 @@ case $1 in
 				echo " gpgkey: configure which gpg key to use."
 				echo "	Ex: $(basename $0) config gpgkey ${DEFAULT_GPGKEY}"
 				;;
+			*)
+				KEY=$1
+				VALUE_VAR=$(echo DEFAULT_${KEY} | tr '[:lower:]' '[:upper:]')
+				VALUE=${2:-$(eval echo \${${VALUE_VAR}})}
+				eval echo \'${VALUE}\' > ${CONFIG}/${KEY}
+				;;
 		esac
 		;;
 	"secret-create")
@@ -168,7 +180,7 @@ case $1 in
 
 		# AppImplementing Section: secret-create
 		#------------------------------------------------------------------------------
-		# nop
+		source ./zss0.impl secret-create
 		#------------------------------------------------------------------------------
 
 		gpg --gen-random --armor 2 16 | base64 | cut -c1-16 > ${SALT}
@@ -198,21 +210,16 @@ case $1 in
 					cd - &> /dev/null
 				fi
 				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
+					echo ${STATENAME} > ${CONFIG}/base_data
 					# AppImplementing Section: data save
 					#------------------------------------------------------------------------------
-					echo ${STATENAME} > ${CONFIG}/base_data
-					cd ${KUBEAPPS_PLATFORM_DIR}
-					./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
-						gzip - | \
-						gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
-					cd -
+					source ./zss0.impl state-data-save
 					#------------------------------------------------------------------------------
 				fi
 				;;
 			"load")
 				if [ "${TYPE}" == "config" -o "${TYPE}" == "" ]; then
-					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz ]
-					then
+					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz ]; then
 						cd ${CONFIG}
 						tar -zxf ${STORE}/state/${STATENAME}-${APPNAME}-config.tgz
 						cd - &> /dev/null
@@ -220,28 +227,23 @@ case $1 in
 					echo ${STATENAME} > ${CONFIG}/base_config
 				fi
 				if [ "${TYPE}" == "secret" -o "${TYPE}" == "" ]; then
-					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc ]
-					then
+					if [ -e ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc ]; then
 						cd ${SECRET}
 						gpg -d ${STORE}/state/${STATENAME}-${APPNAME}-secret.tgz.enc | tar xz
-						# AppImplementing Section: secret load
-						#------------------------------------------------------------------------------
-						kubectl delete secret passwords -n app-${APPNAME}
-						gpg -d ${SECRET}/passwords.enc | kubectl apply -f -
-						#------------------------------------------------------------------------------
 						cd - &> /dev/null
+						# AppImplementing Section: secret load post
+						#------------------------------------------------------------------------------
+						source $(dirname $0)/zss0.impl state-secret-load-post
+						#------------------------------------------------------------------------------
 					fi
 					echo ${STATENAME} > ${CONFIG}/base_secret
 				fi
 				if [ "${TYPE}" == "data" -o "${TYPE}" == "" ]; then
 					# AppImplementing Section: data load
 					#------------------------------------------------------------------------------
-					cd ${KUBEAPPS_PLATFORM_DIR}
-					./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
-					gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./do ssh "sudo tar -C ${APP_BASEDIR} -xf -"
-					cd -
-					echo ${STATENAME} > ${CONFIG}/base_data
+					source ./zss0.impl state-data-load
 					#------------------------------------------------------------------------------
+					echo ${STATENAME} > ${CONFIG}/base_data
 				fi
 				;;
 			"list"|*)
@@ -271,40 +273,7 @@ case $1 in
 				;;
 		esac
 		;;
-	# AppImplementing Section: commands
-	#------------------------------------------------------------------------------
-	"init")
-		cd ${KUBEAPPS_PLATFORM_DIR}
-		./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
-		./zss0 app ${APPNAME} init
-		./zss0 store secret app-${APPNAME}
-		./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
-		./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
-		./zss0 app ${APPNAME} preflight
-		mv -f ${SECRET}/passwords.enc ${SECRET}/passwords.enc.bak
-		kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
-			gpg -ear ${GPGKEY} -o ${SECRET}/passwords.enc
-		cd -
-		;;
-	"on")
-		cd ${KUBEAPPS_PLATFORM_DIR}
-		./zss0 app ${APPNAME} on
-		cd -
-		;;
-	"off")
-		cd ${KUBEAPPS_PLATFORM_DIR}
-		./zss0 app ${APPNAME} off
-		cd -
-		;;
-	"clean")
-		cd ${KUBEAPPS_PLATFORM_DIR}
-		./zss0 app ${APPNAME} clean
-		./zss0 store delete app-${APPNAME} cold
-		./zss0 store delete app-${APPNAME} normal
-		cd -
-		;;
-	#------------------------------------------------------------------------------
-	*)
+	"")
 		echo $(basename $0) version
 		echo $(basename $0) env
 		echo $(basename $0) config ...
@@ -312,8 +281,17 @@ case $1 in
 		echo $(basename $0) "state [list/save/load] [config/secret/data] [state_name, ex: date-stage-env]"
 		# AppImplementing Section: usage
 		#------------------------------------------------------------------------------
-		echo $(basename $0) init/on/off/clean
+		source ./zss0.impl usage
 		#------------------------------------------------------------------------------
 		;;
+	# AppImplementing Section: commands
+	#------------------------------------------------------------------------------
+	*)
+		COMMAND=$1
+		shift
+		ARGS=$*
+		source ./zss0.impl command ${COMMAND} ${ARGS}
+		;;
+	#------------------------------------------------------------------------------
 esac
 

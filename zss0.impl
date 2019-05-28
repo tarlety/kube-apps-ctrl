@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# zss interface
+
+case $1 in
+	"app")
+		PROJECTNAME=kube-apps-ctrl
+		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
+		APPVERSION=0.1.0
+		;;
+	"config")
+		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
+		declare -A CONFIG_DESCRIPTIONS
+		CONFIG_DESCRIPTIONS=( \
+			["kubeapps_platform_dir"]="Where the kube_apps_platform scripts are installed." \
+			["app_basedir"]="The base directory on node, where the app stores data and backups." \
+			["node_ports"]="The ports exposed on worker node." \
+			)
+
+		DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube_apps_platform
+		DEFAULT_APP_BASEDIR=/data/${APPNAME}
+		DEFAULT_NODE_PORTS=32767
+		;;
+	"vars")
+		APP_BACKUP=${APP_BASEDIR}/backup
+		APP_DATA=${APP_BASEDIR}/data
+		;;
+	"requirement")
+		echo - kubectl: $(which kubectl)
+		echo - gzip: $(which gzip)
+		echo - gunzip: $(which gunzip)
+		;;
+	"secret-create")
+		echo "secret-create not support."
+		;;
+	"state-data-save")
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
+			gzip - | \
+			gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
+		cd -
+		;;
+	"state-secret-load-post")
+		kubectl delete secret passwords -n app-${APPNAME}
+		gpg -d ${SECRET}/passwords.enc | kubectl apply -f -
+		;;
+	"state-data-load")
+		cd ${KUBEAPPS_PLATFORM_DIR}
+		./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
+		gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
+		cd -
+		;;
+	# AppImplementing Section: commands
+	#------------------------------------------------------------------------------
+	"command")
+		shift
+		case $1 in
+		"init")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
+			./zss0 app ${APPNAME} init
+			./zss0 store secret app-${APPNAME}
+			./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
+			./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
+			./zss0 app ${APPNAME} preflight
+			mv -f ${SECRET}/passwords.enc ${SECRET}/passwords.enc.bak
+			kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
+				gpg -ear ${GPGKEY} -o ${SECRET}/passwords.enc
+			cd -
+			;;
+		"on")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			./zss0 app ${APPNAME} on
+			cd -
+			;;
+		"off")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			./zss0 app ${APPNAME} off
+			cd -
+			;;
+		"clean")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			./zss0 app ${APPNAME} clean
+			./zss0 store delete app-${APPNAME} cold
+			./zss0 store delete app-${APPNAME} normal
+			cd -
+			;;
+		esac
+		;;
+	#------------------------------------------------------------------------------
+	"usage")
+		echo $(basename $0) init/on/off/clean
+		;;
+esac
+
