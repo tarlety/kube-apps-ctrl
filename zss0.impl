@@ -6,7 +6,7 @@ case $1 in
 	"app")
 		PROJECTNAME=kube-apps-ctrl
 		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-		APPVERSION=0.1.1
+		APPVERSION=0.1.2
 		;;
 	"config")
 		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
@@ -47,7 +47,7 @@ case $1 in
 	"state-data-load")
 		cd ${KUBEAPPS_PLATFORM_DIR}
 		source ./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
-		gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | source ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
+		gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
 		cd -
 		;;
 	# AppImplementing Section: commands
@@ -57,12 +57,12 @@ case $1 in
 		case $1 in
 		"init")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
-			source ./zss0 app ${APPNAME} init
-			source ./zss0 store secret app-${APPNAME}
-			source ./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
-			source ./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
-			source ./zss0 app ${APPNAME} preflight
+			./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
+			./zss0 app ${APPNAME} init
+			./zss0 store secret app-${APPNAME}
+			./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
+			./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
+			./zss0 app ${APPNAME} preflight
 			mv -f ${SECRET}/passwords.enc ${SECRET}/passwords.enc.bak
 			kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
 				gpg -ear ${GPGKEY} -o ${SECRET}/passwords.enc
@@ -80,9 +80,9 @@ case $1 in
 			;;
 		"clean")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 app ${APPNAME} clean
-			source ./zss0 store delete app-${APPNAME} cold
-			source ./zss0 store delete app-${APPNAME} normal
+			./zss0 app ${APPNAME} clean
+			./zss0 store delete app-${APPNAME} cold
+			./zss0 store delete app-${APPNAME} normal
 			cd -
 			;;
 		esac
