@@ -35,7 +35,7 @@ case $1 in
 		;;
 	"state-data-save")
 		cd ${KUBEAPPS_PLATFORM_DIR}
-		source ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
+		./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
 			gzip - | \
 			gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
 		cd -
