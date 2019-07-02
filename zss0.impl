@@ -35,9 +35,10 @@ case $1 in
 		;;
 	"state-data-save")
 		cd ${KUBEAPPS_PLATFORM_DIR}
+		mv ${STORE}/state/${STATENAME}-${APPNAME}-data.tgz.enc ${STORE}/state/${STATENAME}-${APPNAME}-bak-data.tgz.enc >& /dev/null
 		./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
 			gzip - | \
-			gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
+			gpg -ear ${GPGKEY} -o ${STORE}/state/${STATENAME}-${APPNAME}-data.tgz.enc
 		cd -
 		;;
 	"state-secret-load-post")
