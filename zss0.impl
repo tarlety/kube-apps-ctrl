@@ -47,8 +47,8 @@ case $1 in
 		;;
 	"state-data-load")
 		cd ${KUBEAPPS_PLATFORM_DIR}
-		source ./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
-		gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
+		./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
+		gpg -d ${STORE}/state/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
 		cd -
 		;;
 	# AppImplementing Section: commands
