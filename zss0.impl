@@ -4,26 +4,26 @@
 
 case $1 in
 	"app")
-		PROJECTNAME=kube-apps-ctrl
-		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-		APPVERSION=0.1.3
+		export PROJECTNAME=kube-apps-ctrl
+		export APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
+		export APPVERSION=0.1.4
 		;;
 	"config")
-		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
+		export CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
 		declare -A CONFIG_DESCRIPTIONS
-		CONFIG_DESCRIPTIONS=( \
+		export CONFIG_DESCRIPTIONS=( \
 			["kubeapps_platform_dir"]="Where the kube_apps_platform scripts are installed." \
 			["app_basedir"]="The base directory on node, where the app stores data and backups." \
 			["node_ports"]="The ports exposed on worker node." \
 			)
 
-		DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube-apps-platform
-		DEFAULT_APP_BASEDIR=/data/${APPNAME}
-		DEFAULT_NODE_PORTS=32767
+		export DEFAULT_KUBEAPPS_PLATFORM_DIR=../kube-apps-platform
+		export DEFAULT_APP_BASEDIR=/data/${APPNAME}
+		export DEFAULT_NODE_PORTS=32767
 		;;
 	"vars")
-		APP_BACKUP=${APP_BASEDIR}/backup
-		APP_DATA=${APP_BASEDIR}/data
+		export APP_BACKUP=${APP_BASEDIR}/backup
+		export APP_DATA=${APP_BASEDIR}/data
 		;;
 	"requirement")
 		echo - kubectl: $(which kubectl)
@@ -35,7 +35,7 @@ case $1 in
 		;;
 	"state-data-save")
 		cd ${KUBEAPPS_PLATFORM_DIR}
-		source ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
+		./zss0 ssh "sudo tar -C ${APP_BASEDIR} -c ." | \
 			gzip - | \
 			gpg -ear ${GPGKEY} -o ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc
 		cd -
@@ -46,7 +46,7 @@ case $1 in
 		;;
 	"state-data-load")
 		cd ${KUBEAPPS_PLATFORM_DIR}
-		source ./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
+		./zss0 ssh "sudo rm -rf ${APP_BASEDIR} ; sudo mkdir -p ${APP_BASEDIR}"
 		gpg -d ${STORE}/data/${STATENAME}-${APPNAME}-data.tgz.enc | gunzip -c - | ./zss0 ssh "sudo tar -C ${APP_BASEDIR} -xf -"
 		cd -
 		;;
