@@ -58,12 +58,12 @@ case $1 in
 		case $1 in
 		"init")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
-			./zss0 app ${APPNAME} init
-			./zss0 store secret app-${APPNAME}
-			./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
-			./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
-			./zss0 app ${APPNAME} preflight
+			source ./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
+			source ./zss0 app ${APPNAME} init
+			source ./zss0 store secret app-${APPNAME}
+			source ./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
+			source ./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
+			source ./zss0 app ${APPNAME} preflight
 			mv -f ${SECRET}/passwords.enc ${SECRET}/passwords.enc.bak >& /dev/null
 			mkdir -p ${SECRET}
 			kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
@@ -72,19 +72,19 @@ case $1 in
 			;;
 		"on")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 app ${APPNAME} on
+			source ./zss0 app ${APPNAME} on
 			cd -
 			;;
 		"off")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 app ${APPNAME} off
+			source ./zss0 app ${APPNAME} off
 			cd -
 			;;
 		"clean")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 app ${APPNAME} clean
-			./zss0 store delete app-${APPNAME} cold
-			./zss0 store delete app-${APPNAME} normal
+			source ./zss0 app ${APPNAME} clean
+			source ./zss0 store delete app-${APPNAME} cold
+			source ./zss0 store delete app-${APPNAME} normal
 			cd -
 			;;
 		esac
