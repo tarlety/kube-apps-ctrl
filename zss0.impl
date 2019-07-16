@@ -82,9 +82,9 @@ case $1 in
 			;;
 		"clean")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 app ${APPNAME} clean
-			source ./zss0 store delete app-${APPNAME} cold
-			source ./zss0 store delete app-${APPNAME} normal
+			./zss0 app ${APPNAME} clean
+			./zss0 store delete app-${APPNAME} cold
+			./zss0 store delete app-${APPNAME} normal
 			cd -
 			;;
 		"print")
