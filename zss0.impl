@@ -87,11 +87,16 @@ case $1 in
 			source ./zss0 store delete app-${APPNAME} normal
 			cd -
 			;;
+		"print")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			source ./zss0 app ${APPNAME} print
+			cd -
+			;;
 		esac
 		;;
 	#------------------------------------------------------------------------------
 	"usage")
-		echo $(basename $0) init/on/off/clean
+		echo $(basename $0) init/on/off/clean/print
 		;;
 esac
 
