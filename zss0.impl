@@ -92,11 +92,16 @@ case $1 in
 			source ./zss0 app ${APPNAME} print
 			cd -
 			;;
+		"logs")
+			cd ${KUBEAPPS_PLATFORM_DIR}
+			kubectl logs -f -n app-${APPNAME} -l type=app --all-containers=true
+			cd -
+			;;
 		esac
 		;;
 	#------------------------------------------------------------------------------
 	"usage")
-		echo $(basename $0) init/on/off/clean/print
+		echo $(basename $0) init/on/off/clean/print/logs
 		;;
 esac
 
