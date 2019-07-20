@@ -72,12 +72,12 @@ case $1 in
 			;;
 		"on")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 app ${APPNAME} on
+			./zss0 app ${APPNAME} on
 			cd -
 			;;
 		"off")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 app ${APPNAME} off
+			./zss0 app ${APPNAME} off
 			cd -
 			;;
 		"clean")
@@ -89,7 +89,7 @@ case $1 in
 			;;
 		"print")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			source ./zss0 app ${APPNAME} print
+			./zss0 app ${APPNAME} print
 			cd -
 			;;
 		"logs")
