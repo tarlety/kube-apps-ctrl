@@ -6,7 +6,7 @@ case $1 in
 	"app")
 		PROJECTNAME=kube-apps-ctrl
 		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-		APPVERSION=0.1.3
+		APPVERSION=0.1.4
 		;;
 	"config")
 		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
@@ -94,7 +94,7 @@ case $1 in
 			;;
 		"logs")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			kubectl logs -f -n app-${APPNAME} -l type=app --all-containers=true
+			kubectl logs -f -n app-${APPNAME} -l type=app --all-containers=true --max-log-requests 12
 			cd -
 			;;
 		esac
