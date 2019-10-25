@@ -6,7 +6,7 @@ case $1 in
 	"app")
 		PROJECTNAME=kube-apps-ctrl
 		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-		APPVERSION=0.1.4
+		APPVERSION=0.1.5
 		;;
 	"config")
 		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
@@ -72,7 +72,7 @@ case $1 in
 			;;
 		"on")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 app ${APPNAME} on
+			NODE_PORTS=${NODE_PORTS} ./zss0 app ${APPNAME} on
 			cd -
 			;;
 		"off")
