@@ -6,7 +6,7 @@ case $1 in
 	"app")
 		PROJECTNAME=kube-apps-ctrl
 		APPNAME=$(echo $(basename $0) | sed -e 's/app-\(.*\)-ctrl/\1/g')
-		APPVERSION=0.2.0
+		APPVERSION=0.3.0
 		;;
 	"config")
 		CONFIGKEYS="kubeapps_platform_dir app_basedir node_ports"
@@ -57,27 +57,27 @@ case $1 in
 		shift
 		case $1 in
 		"init")
+			mkdir -p ${SECRET}
 			cd ${KUBEAPPS_PLATFORM_DIR}
 			./zss0 ssh "sudo mkdir -p ${APP_BACKUP} ; sudo mkdir -p ${APP_DATA}"
 			./zss0 app ${APPNAME} init
 			./zss0 store secret app-${APPNAME}
 			./zss0 store create app-${APPNAME} cold 1000Gi ${APP_BACKUP} backup
 			./zss0 store create app-${APPNAME} normal 100Gi ${APP_DATA} data
-			./zss0 app ${APPNAME} preflight
+			GPGKEY=${GPGKEY} SECRET_STORE=${SECRET} ./zss0 app ${APPNAME} preflight
 			mv -f ${SECRET}/passwords.enc ${SECRET}/passwords.enc.bak >& /dev/null
-			mkdir -p ${SECRET}
 			kubectl get secrets -n app-${APPNAME} passwords -o yaml | \
 				gpg -ear ${GPGKEY} -o ${SECRET}/passwords.enc
 			cd -
 			;;
 		"on")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			NODE_PORTS=${NODE_PORTS} ./zss0 app ${APPNAME} on
+			SECRET_STORE=${SECRET} NODE_PORTS=${NODE_PORTS} ./zss0 app ${APPNAME} on
 			cd -
 			;;
 		"off")
 			cd ${KUBEAPPS_PLATFORM_DIR}
-			./zss0 app ${APPNAME} off
+			SECRET_STORE=${SECRET} ./zss0 app ${APPNAME} off
 			cd -
 			;;
 		"restart")
